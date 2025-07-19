@@ -1,0 +1,13 @@
+import time
+from client import load_bingx
+from strategies.simple_arbitrage import simple_arbitrage_usdc_usdt
+import pandas as pd
+def main():
+    bingx = load_bingx()
+   # print(bingx.fetch_balance())
+    q = True
+    while q:
+        simple_arbitrage_usdc_usdt()
+        time.sleep(300)
+if __name__ == "__main__":
+    main()
