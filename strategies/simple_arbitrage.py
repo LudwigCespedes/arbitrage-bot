@@ -1,4 +1,3 @@
-
 from client import load_bingx
 import talib
 import numpy as np
@@ -30,123 +29,41 @@ def FIBONACCI_PIVOTS(high, low, close):
     r1 = pivot + (diff * 0.382)
     r2 = pivot + (diff * 0.618)
     r3 = pivot + (diff * 1.000)
-    r1618 = pivot + (diff * 1.618)
+    
     s1 = pivot - (diff * 0.382)
     s2 = pivot - (diff * 0.618)
     s3 = pivot - (diff * 1.000)
-    s1618 = pivot - (diff * 1.618)
 
-    # Niveles intermedios (opcional)
-    r0618 = pivot + (diff * 0.236)
-    r1000 = pivot + (diff * 1.000)
-    s0618 = pivot - (diff * 0.236)
-    s1000 = pivot - (diff * 1.000)
+
 
     return pivot, r1, r2, r3, s1, s2, s3
 
-def simple_arbitrage_usdc_usdt(exchange):
- 
+def simple_arbitrage_usdc_usdt_pivots(exchange):
+    last_timestamp = None
     amount = 1.1
-    balanse_usdc= exchange.fetch_balance()["USDC"]
-    balanse_usdt= exchange.fetch_balance()["USDT"] 
-    data = exchange.fetch_ohlcv("USDC/USDT","1h")
-    price = np.array(data)[:,3]
-    upper, middle, lower = talib.BBANDS(price,timeperiod=20, nbdevup=3, nbdevdn=2, matype= 1)
-    pivotes = PIVOTS(np.array(data)[:,1],
-                     np.array(data)[:,2],
-                     np.array(data)[:,3])
-    #print(upper[-1], middle[-1], lower[-1])
-    if balanse_usdt['free']>amount:
-        if price[-1] < lower[-1]:
-            print(f'Buy USDC to {price[-1]}')
-            bingx.create_order(
-                symbol='USDC/USDT',
-                type='limit',
-                side='buy',
-                amount=amount,
-                price=lower[-1])
-        else:
-            print("Buy USDC")
-            bingx.create_order(
-                symbol='USDC/USDT',
-                type='limit',
-                side='buy',
-                amount=amount,
-                price=lower[-1])
-            
-    if balanse_usdc['free']>amount:
-        if price[-1] > upper[-1]:
-            print("Sell USDC")
-            bingx.create_order(
-                symbol='USDC/USDT',
-                type='limit',
-                side='sell',
-                amount=amount,
-                price=upper[-1])
-        else:
-            print("Sell USDC")
-            bingx.create_order(
-                symbol='USDC/USDT',
-                type='limit',
-                side='sell',
-                amount=amount,
-                price=upper[-1]+ 0.0001)
 
-def simple_arbitrage_usdc_usdt_pivots(exchange)-> None :
-
-    buy_orders = []
-    sell_orders = []
-    amount = 1.1
-        
-    balanse_usdc = exchange.fetch_balance()["USDC"]
-    balanse_usdt = exchange.fetch_balance()["USDT"]
-    data = exchange.fetch_ohlcv("USDC/USDT", "1d")
-    price = np.array(data)[:, 3]  # precios de cierre
-
-        # Calcula pivotes clásicos
-    pivot, r1, r2, r3, s1, s2, s3 = FIBONACCI_PIVOTS(
-            np.array(data)[:, 2],  # high
-            np.array(data)[:, 3],  # low
-            np.array(data)[:, 4]   # close
-        )
-
-    precios_compra = [round(pivot[-1],4), round(s1[-1],4), round(s2[-1],4), round(s3[-1],4)]
-    precios_venta = [round(r1[-1],4), round(r2[-1],4), round(r3[-1],4)]  # Puedes ajustar esto según tu lógica
-
-    for precio_compra in precios_compra:
-        if (balanse_usdt['free'] > amount):
-            if not existe_orden_abierta_compra_precio(exchange, 'USDC/USDT', precio_compra):
-                print(f"Buy USDC at {precio_compra}")
-                orden_compra = exchange.create_order(
-                        symbol='USDC/USDT',
-                        type='limit',
-                        side='buy',
-                        amount=amount,
-                        price=precio_compra
-                    )
-                buy_orders.append(orden_compra)
-    for i, buy_order in enumerate(buy_orders):   
-        order_status = exchange.fetch_order(buy_order['id'], symbol='USDC/USDT')
-        if order_status['status'] == 'closed':
-            precio_venta = precios_venta[i] if i < len(precios_venta) else round(buy_order['price'] * 1.01, 4) 
-            print("Compra ejecutada, creando orden de venta...")
-            orden_venta = exchange.create_order(
-                            symbol='USDC/USDT',
-                            type='limit',
-                            side='sell',
-                            amount=amount,
-                            price=precio_venta
-                        )
-        sell_orders.append(orden_venta)
     while True:
-        for sell_order in sell_orders:
-            order_status = exchange.fetch_order(sell_order['id'], symbol='USDC/USDT')
-            if order_status['status'] == 'closed':
-                print(f"Venta ejecutada a {sell_order['price']}")
-                simple_arbitrage_usdc_usdt_pivots(exchange)# Llamada recursiva para continuar el ciclo
-            else:
-                print(f"Orden de venta pendiente a {sell_order['price']}") 
-                time.sleep(10)  # Espera antes de volver a verificar el estado de las órdenes
+        data = exchange.fetch_ohlcv("USDC/USDT", "1d")
+        # El timestamp de la última vela diaria
+        current_timestamp = data[-1][0]
+
+        # Solo recalcula si hay una nueva vela diaria
+        if current_timestamp != last_timestamp:
+            last_timestamp = current_timestamp
+            print("Nueva vela diaria detectada, recalculando pivotes y precios...")
+
+            pivot, r1, r2, r3, s1, s2, s3 = FIBONACCI_PIVOTS(
+                np.array(data)[:, 2],  # high
+                np.array(data)[:, 3],  # low
+                np.array(data)[:, 4]   # close
+            )
+            precios_compra = [round(pivot[-1],4), round(s1[-1],4), round(s2[-1],4), round(s3[-1],4)]
+            precios_venta = [round(r1[-1],4), round(r2[-1],4), round(r3[-1],4)]
+
+        # Ejecuta el ciclo de arbitraje con los precios actualizados
+        ciclo_arbitraje(exchange, 'USDC/USDT', amount, precios_compra, precios_venta)
+
+        time.sleep(60)  # Espera 1 minuto antes de volver a revisar
 
 def existe_orden_abierta_compra_precio(bingx, symbol, precio):
     """
@@ -169,3 +86,63 @@ def existe_orden_abierta_venta_precio(bingx, symbol, precio):
         if order['side'] == 'sell' and order['status'] == 'open' and float(order['price']) == float(precio):
             return True
     return False
+def make_order_limit_buy(exchange, symbol, amount, price):
+    """
+    Crea una orden de compra limitada.
+    """
+    balanse_usdt = exchange.fetch_balance()["USDT"]
+    precio_compra = price
+    if (balanse_usdt['free'] > amount):
+        if not existe_orden_abierta_compra_precio(exchange, symbol, precio_compra):
+            print(f"Buy USDC at {precio_compra}")
+            buy_order = exchange.create_order(
+                        symbol=symbol,
+                        type='limit',
+                        side='buy',
+                        amount=amount,
+                        price=precio_compra
+                    )
+    return buy_order
+
+def make_order_limit_sell(exchange, symbol, amount, price):
+    """
+    Crea una orden de venta limitada.
+    """
+    balanse_usdc = exchange.fetch_balance()["USDC"]
+    precio_venta = price
+    if (balanse_usdc['free'] > amount):
+        if not existe_orden_abierta_venta_precio(exchange, symbol, precio_venta):
+            print(f"Sell USDC at {precio_venta}")
+            sell_order = exchange.create_order(
+                        symbol=symbol,
+                        type='limit',
+                        side='sell',
+                        amount=amount,
+                        price=precio_venta
+                    )
+    return sell_order
+
+def ciclo_arbitraje(exchange, symbol, amount, precios_compra, precios_venta):
+    while True:
+        # Revisar órdenes de venta ejecutadas
+        open_sell_orders = exchange.fetch_open_orders(symbol)
+        for order in open_sell_orders:
+            if order['side'] == 'sell' and order['status'] == 'closed':
+                for precio in precios_compra:
+                # Coloca orden de compra al siguiente precio
+                    precio_compra = precio # O el que corresponda según tu lógica
+                    make_order_limit_buy(exchange, symbol, amount, precio_compra)
+                    
+
+        # Revisar órdenes de compra ejecutadas
+        open_buy_orders = exchange.fetch_open_orders(symbol)
+        for order in open_buy_orders:
+            if order['side'] == 'buy' and order['status'] == 'closed':
+                # Coloca orden de venta al siguiente precio
+                for precio in precios_venta:
+                    precio_venta = round(precio, 4)
+                    make_order_limit_sell(exchange, symbol, amount, precio_venta)
+        time.sleep(10)  # Espera antes de volver a revisar
+        
+
+# Llama a la función principal con tus parámetros
