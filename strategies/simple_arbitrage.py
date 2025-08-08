@@ -132,6 +132,7 @@ def ciclo_arbitraje(exchange, symbol, amount, precios_compra, precios_venta):
                 # Coloca orden de compra al siguiente precio
                     precio_compra = precio # O el que corresponda según tu lógica
                     make_order_limit_buy(exchange, symbol, amount, precio_compra)
+            
                     
 
         # Revisar órdenes de compra ejecutadas
